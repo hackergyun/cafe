@@ -187,12 +187,14 @@ export default function CartPage() {
                   </div>
                 </div>
 
-                <Button fullWidth size="lg">
-                  주문하기
-                </Button>
+                <Link href="/checkout">
+                  <Button fullWidth size="lg">
+                    주문하기
+                  </Button>
+                </Link>
 
                 <p className="text-xs text-stone-500 text-center mt-4">
-                  주문하기 버튼을 클릭하면 결제 페이지로 이동합니다
+                  주문하기 버튼을 클릭하면 주문 페이지로 이동합니다
                 </p>
               </div>
             </div>
