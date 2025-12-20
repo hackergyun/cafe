@@ -1,40 +1,39 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import Button from "@/components/Button";
 import { useCart } from "@/context/CartContext";
 import { CartItem } from "@/types";
 
 export default function OrderCompletePage() {
+  const params = useSearchParams();
+  const orderNumberFromQuery = params.get("orderNumber") ?? "";
+
   const { items, getTotalPrice, clearCart } = useCart();
   const [orderItems, setOrderItems] = useState<CartItem[]>([]);
   const [orderTotal, setOrderTotal] = useState(0);
-  const [orderNumber, setOrderNumber] = useState("");
+
+  // ✅ 배송비/총액 계산은 기존 로직 유지
+  const shippingFee = useMemo(() => (orderTotal >= 50000 ? 0 : 3000), [orderTotal]);
+  const totalAmount = useMemo(() => orderTotal + shippingFee, [orderTotal, shippingFee]);
 
   useEffect(() => {
     // 주문 정보 저장 (clearCart 실행 전)
     if (items.length > 0) {
       setOrderItems([...items]);
       setOrderTotal(getTotalPrice());
-      
-      // 주문 번호 생성 (YYYYMMDD-XXXXXX 형식)
-      const now = new Date();
-      const datePart = now.toISOString().slice(0, 10).replace(/-/g, "");
-      const randomPart = Math.random().toString(36).substring(2, 8).toUpperCase();
-      setOrderNumber(`${datePart}-${randomPart}`);
 
       // 장바구니 비우기
       clearCart();
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("ko-KR").format(price);
   };
-
-  const shippingFee = orderTotal >= 50000 ? 0 : 3000;
-  const totalAmount = orderTotal + shippingFee;
 
   return (
     <div className="min-h-screen bg-stone-50">
@@ -65,11 +64,11 @@ export default function OrderCompletePage() {
             주문해 주셔서 감사합니다. 맛있는 디저트를 정성껏 준비하겠습니다.
           </p>
 
-          {orderNumber && (
+          {orderNumberFromQuery && (
             <div className="mt-8 inline-block bg-stone-100 px-6 py-3">
               <p className="text-sm text-stone-500">주문번호</p>
               <p className="text-lg font-medium text-stone-900 tracking-wider">
-                {orderNumber}
+                {orderNumberFromQuery}
               </p>
             </div>
           )}
@@ -117,20 +116,28 @@ export default function OrderCompletePage() {
                     </div>
                   ))}
                 </div>
+              </div>
 
-                {/* Total */}
-                <div className="border-t border-stone-200 mt-6 pt-6 space-y-3">
-                  <div className="flex justify-between text-stone-600">
-                    <span>상품 금액</span>
-                    <span>{formatPrice(orderTotal)}원</span>
+              {/* 결제 정보 */}
+              <div className="bg-white border border-stone-200 p-8 mb-8">
+                <h2 className="text-lg font-medium text-stone-900 mb-6">
+                  결제 정보
+                </h2>
+
+                <div className="space-y-3 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-stone-500">상품 금액</span>
+                    <span className="text-stone-900">{formatPrice(orderTotal)}원</span>
                   </div>
-                  <div className="flex justify-between text-stone-600">
-                    <span>배송비</span>
-                    <span>{shippingFee === 0 ? "무료" : `${formatPrice(shippingFee)}원`}</span>
+                  <div className="flex justify-between">
+                    <span className="text-stone-500">배송비</span>
+                    <span className="text-stone-900">{formatPrice(shippingFee)}원</span>
                   </div>
-                  <div className="flex justify-between text-lg font-semibold text-stone-900 pt-3 border-t border-stone-100">
-                    <span>총 결제 금액</span>
-                    <span>{formatPrice(totalAmount)}원</span>
+                  <div className="pt-3 mt-3 border-t border-stone-200 flex justify-between">
+                    <span className="text-stone-900 font-medium">총 결제 금액</span>
+                    <span className="text-stone-900 font-medium">
+                      {formatPrice(totalAmount)}원
+                    </span>
                   </div>
                 </div>
               </div>
@@ -138,9 +145,9 @@ export default function OrderCompletePage() {
               {/* 배송 안내 */}
               <div className="bg-amber-50 border border-amber-200 p-6 mb-8">
                 <div className="flex gap-4">
-                  <div className="flex-shrink-0">
+                  <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center flex-shrink-0">
                     <svg
-                      className="w-6 h-6 text-amber-600"
+                      className="w-5 h-5 text-amber-600"
                       fill="none"
                       stroke="currentColor"
                       viewBox="0 0 24 24"
@@ -188,4 +195,3 @@ export default function OrderCompletePage() {
     </div>
   );
 }
-

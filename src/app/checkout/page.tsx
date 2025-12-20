@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/Button";
 import { useCart } from "@/context/CartContext";
+import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { db } from "@/lib/firebase/client";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -38,14 +40,61 @@ export default function CheckoutPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // ✅ 주문번호 생성 (checkout에서 확정)
+  const generateOrderNumber = () => {
+    const now = new Date();
+    const date = now.toISOString().slice(0, 10).replace(/-/g, "");
+    const random = Math.floor(100000 + Math.random() * 900000);
+    return `${date}-${random}`;
+  };
+
+  // 🔥 핵심: Firestore 주문 저장
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    if (items.length === 0) return;
+
     setIsSubmitting(true);
 
-    // 실제 결제 로직 없이 주문 완료 페이지로 이동
-    setTimeout(() => {
-      router.push("/order/complete");
-    }, 500);
+    try {
+      const orderNumber = generateOrderNumber();
+      const shippingFee = getTotalPrice() >= 50000 ? 0 : 3000;
+      const totalAmount = getTotalPrice() + shippingFee;
+
+      await addDoc(collection(db, "orders"), {
+        orderNumber,
+        status: "pending",
+        customer: {
+          name: formData.name,
+          phone: formData.phone,
+        },
+        shipping: {
+          address: formData.address,
+          addressDetail: formData.addressDetail,
+          request: formData.request,
+        },
+        items: items.map((item) => ({
+          productId: item.product.id,
+          name: item.product.name,
+          price: item.product.price,
+          quantity: item.quantity,
+        })),
+        pricing: {
+          subtotal: getTotalPrice(),
+          shippingFee,
+          total: totalAmount,
+        },
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+      });
+
+      // 주문 완료 페이지로 이동 (주문번호 전달)
+      router.push(`/order/complete?orderNumber=${orderNumber}`);
+    } catch (error) {
+      console.error(error);
+      alert("주문 처리 중 오류가 발생했습니다. 다시 시도해주세요.");
+      setIsSubmitting(false);
+    }
   };
 
   const shippingFee = getTotalPrice() >= 50000 ? 0 : 3000;
@@ -200,14 +249,12 @@ export default function CheckoutPage() {
                         key={item.product.id}
                         className="py-4 first:pt-0 last:pb-0 flex gap-4"
                       >
-                        {/* Image */}
                         <div className="w-16 h-16 bg-gradient-to-br from-amber-100 via-orange-50 to-stone-200 flex-shrink-0 flex items-center justify-center">
                           <span className="text-stone-400 text-[8px] text-center px-1">
                             {item.product.name}
                           </span>
                         </div>
 
-                        {/* Info */}
                         <div className="flex-1 min-w-0">
                           <p className="text-stone-900 font-medium truncate">
                             {item.product.name}
@@ -217,7 +264,6 @@ export default function CheckoutPage() {
                           </p>
                         </div>
 
-                        {/* Price */}
                         <p className="text-stone-900 font-medium whitespace-nowrap">
                           {formatPrice(item.product.price * item.quantity)}원
                         </p>
@@ -241,7 +287,9 @@ export default function CheckoutPage() {
                     </div>
                     <div className="flex justify-between text-stone-600">
                       <span>배송비</span>
-                      <span>{shippingFee === 0 ? "무료" : `${formatPrice(shippingFee)}원`}</span>
+                      <span>
+                        {shippingFee === 0 ? "무료" : `${formatPrice(shippingFee)}원`}
+                      </span>
                     </div>
                   </div>
 
@@ -297,4 +345,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-
