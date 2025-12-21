@@ -109,3 +109,6 @@ export async function generateStaticParams() {
   return [{ category: "all" }, ...categoryParams];
 }
 
+
+
+
