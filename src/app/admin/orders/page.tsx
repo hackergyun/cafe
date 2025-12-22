@@ -130,8 +130,6 @@ export default function AdminOrdersPage() {
       setOrders(nextOrders);
 
       // ✅ 선택 유지 로직
-      // - 선택이 없으면: 첫 주문 자동 선택
-      // - 선택이 있는데 목록에서 사라졌으면: 첫 주문으로 fallback
       setSelectedOrderId((prev) => {
         if (!nextOrders.length) return null;
         if (!prev) return nextOrders[0].id;
@@ -173,7 +171,6 @@ export default function AdminOrdersPage() {
     const pw = passwordInput.trim();
     if (!pw) return;
 
-    // 일단 저장하고, API로 검증(목록 호출)해서 통과하면 authed 처리
     setAdminPassword(pw);
     setLoading(true);
     setError(null);
@@ -219,13 +216,183 @@ export default function AdminOrdersPage() {
         throw new Error("상태 변경에 실패했습니다.");
       }
 
-      // UI 즉시 반영(optimistic)
       setOrders((prev) =>
         prev.map((o) => (o.id === id ? { ...o, status } : o))
       );
     } catch (e: any) {
       alert(e?.message || "오류가 발생했습니다.");
     }
+  };
+
+  // =========================
+  // ✅ Stage2-2/2-3: CSV Export (주문/출고) - UI 변경 없이 버튼만 추가
+  // =========================
+  const csvEscape = (v: any) => `"${String(v ?? "").replace(/"/g, '""')}"`;
+
+  const downloadCSVBlob = (filename: string, headers: string[], rows: any[][]) => {
+    const csv =
+      "\uFEFF" +
+      [headers, ...rows]
+        .map((row) => row.map(csvEscape).join(","))
+        .join("\n");
+
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+
+    URL.revokeObjectURL(url);
+  };
+
+  const getDateTag = () => new Date().toISOString().slice(0, 10);
+  const getStatusTag = () => (filterStatus === "all" ? "all" : filterStatus);
+
+  // 1) 주문 CSV (주문 1건 = 1행)
+  const downloadOrdersCSV = () => {
+    if (!orders.length) {
+      alert("다운로드할 주문이 없습니다.");
+      return;
+    }
+
+    const headers = [
+      "주문번호",
+      "상태",
+      "주문일시",
+      "고객명",
+      "연락처",
+      "주소",
+      "상세주소",
+      "배송요청사항",
+      "상품요약",
+      "상품수량합계",
+      "소계",
+      "배송비",
+      "총결제금액",
+    ];
+
+    const rows = orders.map((o) => {
+      const createdAt =
+        o.createdAt &&
+        typeof o.createdAt === "object" &&
+        "_seconds" in (o.createdAt as any)
+          ? new Date((o.createdAt as any)._seconds * 1000).toLocaleString("ko-KR")
+          : "-";
+
+      const items = o.items || [];
+      const itemSummary = items
+        .map((it) => `${it.name || "-"}×${it.quantity || 0}`)
+        .join(" | ");
+      const totalQty = items.reduce((sum, it) => sum + (it.quantity || 0), 0);
+
+      return [
+        o.orderNumber || "-",
+        statusLabel(o.status),
+        createdAt,
+        o.customer?.name || "-",
+        o.customer?.phone || "-",
+        o.shipping?.address || "-",
+        o.shipping?.addressDetail || "",
+        o.shipping?.request || "",
+        itemSummary || "-",
+        totalQty,
+        typeof o.pricing?.subtotal === "number" ? o.pricing.subtotal : "",
+        typeof o.pricing?.shippingFee === "number" ? o.pricing.shippingFee : "",
+        typeof o.pricing?.total === "number" ? o.pricing.total : "",
+      ];
+    });
+
+    downloadCSVBlob(
+      `orders_${getStatusTag()}_${getDateTag()}.csv`,
+      headers,
+      rows
+    );
+  };
+
+  // 2) 출고 CSV (상품 1개 = 1행, 현장 친화형)
+  const downloadPackingCSV = () => {
+    if (!orders.length) {
+      alert("다운로드할 주문이 없습니다.");
+      return;
+    }
+
+    type Agg = {
+      productName: string;
+      totalQty: number;
+      orderNumbers: Set<string>;
+      customerNames: Set<string>;
+      requestOrderNumbers: Set<string>; // 요청사항 있는 주문번호
+    };
+
+    const map = new Map<string, Agg>();
+
+    for (const o of orders) {
+      const orderNo = o.orderNumber || o.id; // 주문번호 없으면 id fallback
+      const customerName = o.customer?.name || "-";
+      const hasRequest = Boolean(o.shipping?.request && o.shipping.request.trim());
+
+      const items = o.items || [];
+      for (const it of items) {
+        const name = it.name || it.productId || "-";
+        const key = name; // 상품명 기준 집계 (실무에서 제일 직관적)
+
+        const qty = it.quantity || 0;
+
+        if (!map.has(key)) {
+          map.set(key, {
+            productName: name,
+            totalQty: 0,
+            orderNumbers: new Set(),
+            customerNames: new Set(),
+            requestOrderNumbers: new Set(),
+          });
+        }
+
+        const agg = map.get(key)!;
+        agg.totalQty += qty;
+        agg.orderNumbers.add(orderNo);
+        if (customerName) agg.customerNames.add(customerName);
+        if (hasRequest) agg.requestOrderNumbers.add(orderNo);
+      }
+    }
+
+    const headers = [
+      "상품명",
+      "총수량",
+      "주문번호목록",
+      "고객명요약",
+      "요청사항있는주문(주문번호)",
+    ];
+
+    const rows = Array.from(map.values())
+      .sort((a, b) => b.totalQty - a.totalQty)
+      .map((agg) => {
+        const orderList = Array.from(agg.orderNumbers).join(", ");
+        const customers = Array.from(agg.customerNames);
+
+        // 고객명 요약: "홍길동 외 3명"
+        let customerSummary = "-";
+        if (customers.length === 1) customerSummary = customers[0];
+        else if (customers.length > 1) customerSummary = `${customers[0]} 외 ${customers.length - 1}명`;
+
+        const requestOrders = Array.from(agg.requestOrderNumbers).join(", ");
+
+        return [
+          agg.productName,
+          agg.totalQty,
+          orderList,
+          customerSummary,
+          requestOrders || "",
+        ];
+      });
+
+    downloadCSVBlob(
+      `packing_${getStatusTag()}_${getDateTag()}.csv`,
+      headers,
+      rows
+    );
   };
 
   return (
@@ -311,6 +478,7 @@ export default function AdminOrdersPage() {
                     </p>
                   </div>
 
+                  {/* ✅ 기존 버튼 라인 유지 + 버튼만 1개 추가 */}
                   <div className="flex items-center gap-3">
                     <select
                       value={filterStatus}
@@ -332,6 +500,24 @@ export default function AdminOrdersPage() {
                       disabled={loading}
                     >
                       {loading ? "불러오는 중..." : "새로고침"}
+                    </Button>
+
+                    {/* 기존 CSV 버튼을 '주문 CSV'로 명확화 (같은 자리) */}
+                    <Button
+                      variant="outline"
+                      onClick={downloadOrdersCSV}
+                      disabled={loading || orders.length === 0}
+                    >
+                      주문 CSV
+                    </Button>
+
+                    {/* ✅ 추가: 출고 CSV */}
+                    <Button
+                      variant="outline"
+                      onClick={downloadPackingCSV}
+                      disabled={loading || orders.length === 0}
+                    >
+                      출고 CSV
                     </Button>
                   </div>
                 </div>

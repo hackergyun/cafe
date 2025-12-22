@@ -47,6 +47,16 @@ export default function Footer() {
                   장바구니
                 </Link>
               </li>
+
+              {/* ✅ Stage 3: 정책/사업자 정보(통합 페이지) 링크만 추가 */}
+              <li>
+                <Link
+                  href="/policies"
+                  className="text-stone-400 hover:text-white transition-colors text-sm"
+                >
+                  이용약관/개인정보/배송·환불/사업자정보
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -73,6 +83,35 @@ export default function Footer() {
           <p className="text-stone-500 text-sm">
             © 2024 Maison Dessert. All rights reserved.
           </p>
+
+          {/* ✅ 정책 링크(하단 빠른 접근) - UI 톤 유지 */}
+          <div className="flex flex-wrap items-center justify-center gap-4 text-sm">
+            <Link
+              href="/policies#terms"
+              className="text-stone-500 hover:text-white transition-colors"
+            >
+              이용약관
+            </Link>
+            <Link
+              href="/policies#privacy"
+              className="text-stone-500 hover:text-white transition-colors"
+            >
+              개인정보처리방침
+            </Link>
+            <Link
+              href="/policies#delivery"
+              className="text-stone-500 hover:text-white transition-colors"
+            >
+              배송·교환·환불
+            </Link>
+            <Link
+              href="/policies#business"
+              className="text-stone-500 hover:text-white transition-colors"
+            >
+              사업자정보
+            </Link>
+          </div>
+
           <div className="flex gap-6">
             <a
               href="#"
@@ -96,7 +135,3 @@ export default function Footer() {
     </footer>
   );
 }
-
-
-
-
