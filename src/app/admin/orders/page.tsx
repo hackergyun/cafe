@@ -4,6 +4,13 @@ import { useEffect, useMemo, useState } from "react";
 import Button from "@/components/Button";
 
 type OrderStatus = "pending" | "confirmed" | "shipped" | "canceled";
+type PaymentStatus =
+  | "unpaid"
+  | "ready"
+  | "paid"
+  | "failed"
+  | "canceled"
+  | "refunded";
 
 type AdminOrder = {
   id: string;
@@ -34,6 +41,11 @@ type AdminOrder = {
     shippingFee?: number;
     total?: number;
   };
+  payment?: {
+    provider?: string; // "NAVERPAY" or "naverpay_order" 등
+    status?: PaymentStatus;
+  };
+
 };
 
 const STATUS_OPTIONS: Array<{ value: OrderStatus | "all"; label: string }> = [
@@ -77,6 +89,44 @@ function statusLabel(status?: OrderStatus) {
       return "-";
   }
 }
+function payBadge(status?: PaymentStatus) {
+  switch (status) {
+    case "paid":
+      return "bg-green-100 text-green-700";
+    case "ready":
+      return "bg-blue-100 text-blue-700";
+    case "unpaid":
+      return "bg-stone-100 text-stone-700";
+    case "failed":
+      return "bg-red-100 text-red-700";
+    case "canceled":
+      return "bg-amber-100 text-amber-700";
+    case "refunded":
+      return "bg-purple-100 text-purple-700";
+    default:
+      return "bg-stone-100 text-stone-700";
+  }
+}
+
+function payLabel(status?: PaymentStatus) {
+  switch (status) {
+    case "paid":
+      return "결제완료";
+    case "ready":
+      return "결제진행";
+    case "unpaid":
+      return "미결제";
+    case "failed":
+      return "결제실패";
+    case "canceled":
+      return "결제취소";
+    case "refunded":
+      return "환불";
+    default:
+      return "-";
+  }
+}
+
 
 const STORAGE_KEY = "cafe_admin_password_v1";
 
@@ -260,6 +310,7 @@ export default function AdminOrdersPage() {
     const headers = [
       "주문번호",
       "상태",
+      "결제상태",
       "주문일시",
       "고객명",
       "연락처",
@@ -290,6 +341,7 @@ export default function AdminOrdersPage() {
       return [
         o.orderNumber || "-",
         statusLabel(o.status),
+        payLabel(o.payment?.status),
         createdAt,
         o.customer?.name || "-",
         o.customer?.phone || "-",
@@ -532,6 +584,7 @@ export default function AdminOrdersPage() {
                   <div className="divide-y divide-stone-200">
                     {orders.map((o) => {
                       const isSelected = selectedOrderId === o.id;
+                      const payOk = o.payment?.status === "paid";
                       return (
                         <div
                           key={o.id}
@@ -541,19 +594,22 @@ export default function AdminOrdersPage() {
                           }`}
                         >
                           <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-3">
-                              <div className="text-stone-900 font-medium truncate">
-                                주문번호: {o.orderNumber || "-"}
-                              </div>
-                              <span
-                                className={`text-xs px-2 py-1 rounded-full ${statusBadge(
-                                  o.status
-                                )}`}
-                              >
-                                {statusLabel(o.status)}
-                              </span>
-                            </div>
+                          <div className="flex items-center gap-3">
+  <div className="text-stone-900 font-medium truncate">
+    주문번호: {o.orderNumber || "-"}
+  </div>
 
+  <span className={`text-xs px-2 py-1 rounded-full ${statusBadge(o.status)}`}>
+    {statusLabel(o.status)}
+  </span>
+
+  <span
+    className={`text-xs px-2 py-1 rounded-full ${payBadge(o.payment?.status)}`}
+    title={`결제상태: ${o.payment?.status ?? "-"}`}
+  >
+    {payLabel(o.payment?.status)}
+  </span>
+</div>
                             <div className="text-sm text-stone-500 mt-2 flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
                               <span>
                                 고객:{" "}
@@ -596,21 +652,23 @@ export default function AdminOrdersPage() {
                             className="flex flex-col gap-2"
                             onClick={(e) => e.stopPropagation()}
                           >
-                            <select
-                              value={o.status || "pending"}
-                              onChange={(e) =>
-                                updateStatus(
-                                  o.id,
-                                  e.target.value as OrderStatus
-                                )
-                              }
-                              className="px-3 py-2 border border-stone-300 bg-white focus:border-stone-900 focus:outline-none text-sm"
-                            >
-                              <option value="pending">대기</option>
-                              <option value="confirmed">확인</option>
-                              <option value="shipped">발송</option>
-                              <option value="canceled">취소</option>
-                            </select>
+                          <select
+  value={o.status || "pending"}
+  onChange={(e) => updateStatus(o.id, e.target.value as OrderStatus)}
+  className="px-3 py-2 border border-stone-300 bg-white focus:border-stone-900 focus:outline-none text-sm"
+>
+  <option value="pending">대기</option>
+
+  {/* 결제완료 전에는 운영단계(확인/발송) 막기 */}
+  <option value="confirmed" disabled={!payOk}>
+    확인{!payOk ? " (결제완료 후 가능)" : ""}
+  </option>
+  <option value="shipped" disabled={!payOk}>
+    발송{!payOk ? " (결제완료 후 가능)" : ""}
+  </option>
+
+  <option value="canceled">취소</option>
+</select>
                           </div>
                         </div>
                       );

@@ -48,22 +48,33 @@ export default function CheckoutPage() {
     return `${date}-${random}`;
   };
 
-  // 🔥 핵심: Firestore 주문 저장
+  // 🔥 Firestore 주문 저장 + (Stage 4-2 Step1) ready 호출 → redirect
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     if (items.length === 0) return;
+    if (isSubmitting) return;
 
     setIsSubmitting(true);
 
     try {
       const orderNumber = generateOrderNumber();
-      const shippingFee = getTotalPrice() >= 50000 ? 0 : 3000;
-      const totalAmount = getTotalPrice() + shippingFee;
+      const subtotal = getTotalPrice();
+      const shippingFee = subtotal >= 50000 ? 0 : 3000;
+      const totalAmount = subtotal + shippingFee;
 
-      await addDoc(collection(db, "orders"), {
+      // 1) 주문 생성
+      const docRef = await addDoc(collection(db, "orders"), {
         orderNumber,
         status: "pending",
+
+        payment: {
+          provider: "naverpay_order",
+          status: "unpaid",
+          merchantUid: orderNumber, // 내부 주문번호
+          requestedAt: null,
+          paidAt: null,
+        },
+
         customer: {
           name: formData.name,
           phone: formData.phone,
@@ -80,7 +91,7 @@ export default function CheckoutPage() {
           quantity: item.quantity,
         })),
         pricing: {
-          subtotal: getTotalPrice(),
+          subtotal,
           shippingFee,
           total: totalAmount,
         },
@@ -88,11 +99,26 @@ export default function CheckoutPage() {
         updatedAt: serverTimestamp(),
       });
 
-      // 주문 완료 페이지로 이동 (주문번호 전달)
-      router.push(`/order/complete?orderNumber=${orderNumber}`);
-    } catch (error) {
+      const orderId = docRef.id;
+
+      // 2) (Step1) 서버 ready 호출 → redirectUrl 받기
+      const res = await fetch("/api/payments/naverpay/ready", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ orderId }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.ok || !data?.redirectUrl) {
+        throw new Error(data?.message || "결제 요청 생성에 실패했습니다.");
+      }
+
+      // 3) 결제 페이지로 이동(지금은 임시 redirect)
+      window.location.href = data.redirectUrl;
+    } catch (error: any) {
       console.error(error);
-      alert("주문 처리 중 오류가 발생했습니다. 다시 시도해주세요.");
+      alert(error?.message || "주문 처리 중 오류가 발생했습니다. 다시 시도해주세요.");
       setIsSubmitting(false);
     }
   };
@@ -113,9 +139,7 @@ export default function CheckoutPage() {
           <h1 className="text-4xl md:text-5xl font-serif text-stone-900">
             주문하기
           </h1>
-          <p className="text-stone-500 mt-4">
-            배송 정보를 입력해주세요
-          </p>
+          <p className="text-stone-500 mt-4">배송 정보를 입력해주세요</p>
         </div>
       </section>
 
@@ -295,19 +319,16 @@ export default function CheckoutPage() {
 
                   <div className="border-t border-stone-200 pt-6 mb-8">
                     <div className="flex justify-between items-center">
-                      <span className="text-stone-900 font-medium">총 결제 금액</span>
+                      <span className="text-stone-900 font-medium">
+                        총 결제 금액
+                      </span>
                       <span className="text-2xl font-semibold text-stone-900">
                         {formatPrice(totalAmount)}원
                       </span>
                     </div>
                   </div>
 
-                  <Button
-                    type="submit"
-                    fullWidth
-                    size="lg"
-                    disabled={isSubmitting}
-                  >
+                  <Button type="submit" fullWidth size="lg" disabled={isSubmitting}>
                     {isSubmitting ? "주문 처리 중..." : "주문하기"}
                   </Button>
 
@@ -345,6 +366,3 @@ export default function CheckoutPage() {
     </div>
   );
 }
-
-
-
