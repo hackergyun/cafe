@@ -9,27 +9,82 @@ import { CartItem } from "@/types";
 
 export default function OrderCompleteClient() {
   const params = useSearchParams();
+  const impUid = params.get("imp_uid");
+  const merchantUid = params.get("merchant_uid"); 
   const orderNumberFromQuery = params.get("orderNumber") ?? "";
 
+  // 🔥 PortOne 결제 플로우용 표시 주문번호
+  // - PortOne 리다이렉트: merchant_uid
+  // - 기존 플로우: orderNumber
+  const displayOrderNo = merchantUid || orderNumberFromQuery;
   const { items, getTotalPrice, clearCart } = useCart();
   const [orderItems, setOrderItems] = useState<CartItem[]>([]);
   const [orderTotal, setOrderTotal] = useState(0);
 
   const shippingFee = useMemo(() => (orderTotal >= 50000 ? 0 : 3000), [orderTotal]);
   const totalAmount = useMemo(() => orderTotal + shippingFee, [orderTotal, shippingFee]);
+  const [isVerifying, setIsVerifying] = useState(false);
+const [verifyError, setVerifyError] = useState<string | null>(null);
+
+useEffect(() => {
+  // 포트원 리다이렉트로 들어온 케이스만 검증
+  if (!impUid || !merchantUid) return;
+
+  let cancelled = false;
+
+  const run = async () => {
+    setIsVerifying(true);
+    setVerifyError(null);
+
+    try {
+      const res = await fetch("/api/payments/portone/verify", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          imp_uid: impUid,
+          merchant_uid: merchantUid,
+        }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.ok) {
+        throw new Error(data?.message || "결제 검증 실패");
+      }
+
+      // ✅ 결제 확정 → 장바구니 비우기
+      if (!cancelled) clearCart();
+    } catch (e: any) {
+      console.error(e);
+      if (!cancelled) setVerifyError(e?.message || "결제 확인 중 오류가 발생했습니다.");
+    } finally {
+      if (!cancelled) setIsVerifying(false);
+    }
+  };
+
+  run();
+
+  return () => {
+    cancelled = true;
+  };
+}, [impUid, merchantUid, clearCart]);
+
 
   const formatPrice = (price: number) => {
     return new Intl.NumberFormat("ko-KR").format(price);
   };
 
   useEffect(() => {
+    // ✅ 포트원 결제 완료로 넘어온 경우엔(imp_uid/merchant_uid 존재) 장바구니 기반 처리 금지
+    if (impUid && merchantUid) return;
+  
     if (items.length > 0) {
       setOrderItems([...items]);
       setOrderTotal(getTotalPrice());
       clearCart();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [impUid, merchantUid]);  
 
   return (
     <div className="min-h-screen bg-stone-50">
@@ -57,17 +112,27 @@ export default function OrderCompleteClient() {
             주문이 완료되었습니다
           </h1>
           <p className="text-stone-500 text-lg">
-            주문해 주셔서 감사합니다. 맛있는 디저트를 정성껏 준비하겠습니다.
-          </p>
+  주문해 주셔서 감사합니다. 맛있는 디저트를 정성껏 준비하겠습니다.
+</p>
 
-          {orderNumberFromQuery && (
-            <div className="mt-8 inline-block bg-stone-100 px-6 py-3">
-              <p className="text-sm text-stone-500">주문번호</p>
-              <p className="text-lg font-medium text-stone-900 tracking-wider">
-                {orderNumberFromQuery}
-              </p>
-            </div>
-          )}
+{impUid && merchantUid && (
+  <div className="mt-4">
+    {isVerifying && (
+      <p className="text-sm text-stone-500">결제 확인 중입니다...</p>
+    )}
+    {verifyError && (
+      <p className="text-sm text-red-600">결제 확인 실패: {verifyError}</p>
+    )}
+  </div>
+)}
+ {displayOrderNo && (
+  <div className="mt-8 inline-block bg-stone-100 px-6 py-3">
+    <p className="text-sm text-stone-500">주문번호</p>
+    <p className="text-lg font-medium text-stone-900 tracking-wider">
+      {displayOrderNo}
+    </p>
+  </div>
+)}
         </div>
       </section>
 

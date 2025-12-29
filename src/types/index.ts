@@ -92,3 +92,4 @@ export interface Order {
   createdAt?: unknown; // Firestore Timestamp
   updatedAt?: unknown; // Firestore Timestamp
 }
+

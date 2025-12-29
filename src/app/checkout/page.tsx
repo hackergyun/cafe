@@ -5,8 +5,9 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/Button";
 import { useCart } from "@/context/CartContext";
-import { addDoc, collection, serverTimestamp } from "firebase/firestore";
+import { addDoc, collection, serverTimestamp, updateDoc, doc } from "firebase/firestore";
 import { db } from "@/lib/firebase/client";
+import type { DocumentReference, DocumentData } from "firebase/firestore";
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -63,59 +64,106 @@ export default function CheckoutPage() {
       const totalAmount = subtotal + shippingFee;
 
       // 1) 주문 생성
-      const docRef = await addDoc(collection(db, "orders"), {
-        orderNumber,
-        status: "pending",
+      const docRef: DocumentReference<DocumentData> = await addDoc(
+        collection(db, "orders"),
+        {
+          orderNumber,
+          status: "pending",
+      
+          payment: {
+            provider: "portone",
+            status: "unpaid",
+            merchantUid: orderNumber,
+            requestedAt: null,
+            paidAt: null,
+          },
+      
+          customer: {
+            name: formData.name,
+            phone: formData.phone,
+          },
+          shipping: {
+            address: formData.address,
+            addressDetail: formData.addressDetail,
+            request: formData.request,
+          },
+          items: items.map((item) => ({
+            productId: item.product.id,
+            name: item.product.name,
+            price: item.product.price,
+            quantity: item.quantity,
+          })),
+          pricing: {
+            subtotal,
+            shippingFee,
+            total: totalAmount,
+          },
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+        }
+      );      
+      const orderId: string = docRef.id;
 
-        payment: {
-          provider: "naverpay_order",
-          status: "unpaid",
-          merchantUid: orderNumber, // 내부 주문번호
-          requestedAt: null,
-          paidAt: null,
-        },
+// ✅ (운영/추적용) 주문 생성 직후 orderId/payment.requestedAt 저장
+await updateDoc(doc(db, "orders", orderId), {
+  "payment.orderId": orderId,
+  "payment.requestedAt": serverTimestamp(),
+  updatedAt: serverTimestamp(),
+});
 
-        customer: {
-          name: formData.name,
-          phone: formData.phone,
-        },
-        shipping: {
-          address: formData.address,
-          addressDetail: formData.addressDetail,
-          request: formData.request,
-        },
-        items: items.map((item) => ({
-          productId: item.product.id,
-          name: item.product.name,
-          price: item.product.price,
-          quantity: item.quantity,
-        })),
-        pricing: {
-          subtotal,
-          shippingFee,
-          total: totalAmount,
-        },
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp(),
-      });
+// ✅ PortOne 결제창 호출 ...
+// ✅ PortOne 결제창 호출 (키 없으니 일단 구조만)
+if (!document.getElementById("portone-iamport-sdk")) {
+  await new Promise<void>((resolve, reject) => {
+    const s = document.createElement("script");
+    s.id = "portone-iamport-sdk";
+    s.src = "https://cdn.iamport.kr/v1/iamport.js";
+    s.async = true;
+    s.onload = () => resolve();
+    s.onerror = () => reject(new Error("결제 모듈 스크립트 로드 실패"));
+    document.body.appendChild(s);
+  });
+}
 
-      const orderId = docRef.id;
+const { IMP } = window as any;
+if (!IMP) throw new Error("결제 모듈을 불러올 수 없습니다.");
 
-      // 2) (Step1) 서버 ready 호출 → redirectUrl 받기
-      const res = await fetch("/api/payments/naverpay/ready", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ orderId }),
-      });
+// TODO: 계약 후 실제 storeId로 교체
+IMP.init("imp00000000"); // 🔥 테스트용 더미
 
-      const data = await res.json().catch(() => null);
-
-      if (!res.ok || !data?.ok || !data?.redirectUrl) {
-        throw new Error(data?.message || "결제 요청 생성에 실패했습니다.");
-      }
-
-      // 3) 결제 페이지로 이동(지금은 임시 redirect)
-      window.location.href = data.redirectUrl;
+IMP.request_pay(
+  {
+    pg: "html5_inicis", // 포트원 내부 PG (나중에 네이버페이 채널로 변경)
+    pay_method: "card", // 테스트 단계
+    merchant_uid: orderNumber,
+    name: "디저트 주문",
+    amount: totalAmount,
+    buyer_name: formData.name,
+    buyer_tel: formData.phone,
+    m_redirect_url: `${window.location.origin}/pay/portone/redirect`,
+  },
+  (rsp: any) => {
+    if (rsp.success) {
+      setIsSubmitting(false);
+      router.push(
+        `/order/complete?imp_uid=${rsp.imp_uid}&merchant_uid=${rsp.merchant_uid}`
+      );
+      return;
+    }
+    
+  
+    // ✅ 결제 실패/취소도 주문에 기록 (운영 필수)
+    updateDoc(doc(db, "orders", orderId), {
+      "payment.status": rsp.error_code ? "failed" : "cancelled",
+      "payment.failReason": rsp.error_msg || "user_cancelled",
+      updatedAt: serverTimestamp(),
+    }).catch(() => {});
+  
+    alert("결제가 취소되었거나 실패했습니다.");
+    setIsSubmitting(false);
+  }  
+);
+      
     } catch (error: any) {
       console.error(error);
       alert(error?.message || "주문 처리 중 오류가 발생했습니다. 다시 시도해주세요.");
@@ -329,8 +377,8 @@ export default function CheckoutPage() {
                   </div>
 
                   <Button type="submit" fullWidth size="lg" disabled={isSubmitting}>
-                    {isSubmitting ? "주문 처리 중..." : "주문하기"}
-                  </Button>
+                 {isSubmitting ? "결제창 여는 중..." : "주문하기"}
+                 </Button>
 
                   <p className="text-xs text-stone-500 text-center mt-4">
                     주문 내용을 확인하였으며, 결제에 동의합니다.
