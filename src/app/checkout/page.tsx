@@ -5,9 +5,18 @@ import { useRouter } from "next/navigation";
 import Link from "next/link";
 import Button from "@/components/Button";
 import { useCart } from "@/context/CartContext";
-import { addDoc, collection, serverTimestamp, updateDoc, doc } from "firebase/firestore";
-import { db } from "@/lib/firebase/client";
-import type { DocumentReference, DocumentData } from "firebase/firestore";
+
+type CreateOrderResponse =
+  | {
+      ok: true;
+      orderId: string;
+      merchant_uid: string;
+      amount: number;
+    }
+  | {
+      ok: false;
+      error?: string;
+    };
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -41,7 +50,7 @@ export default function CheckoutPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ✅ 주문번호 생성 (checkout에서 확정)
+  // ✅ 주문번호 생성 (운영/추적용: 서버에도 같이 넘겨둠)
   const generateOrderNumber = () => {
     const now = new Date();
     const date = now.toISOString().slice(0, 10).replace(/-/g, "");
@@ -49,7 +58,7 @@ export default function CheckoutPage() {
     return `${date}-${random}`;
   };
 
-  // 🔥 Firestore 주문 저장 + (Stage 4-2 Step1) ready 호출 → redirect
+  // ✅ 주문 생성은 서버 API에서만 수행
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (items.length === 0) return;
@@ -63,21 +72,14 @@ export default function CheckoutPage() {
       const shippingFee = subtotal >= 50000 ? 0 : 3000;
       const totalAmount = subtotal + shippingFee;
 
-      // 1) 주문 생성
-      const docRef: DocumentReference<DocumentData> = await addDoc(
-        collection(db, "orders"),
-        {
-          orderNumber,
+      // 1) ✅ 서버에서 주문 생성 (Firestore Admin SDK)
+      const res = await fetch("/api/orders/create", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          orderNumber, // 서버에서 merchant_uid로 써도 되고, 참고용으로 저장해도 됨
           status: "pending",
-      
-          payment: {
-            provider: "portone",
-            status: "unpaid",
-            merchantUid: orderNumber,
-            requestedAt: null,
-            paidAt: null,
-          },
-      
+          payment: { provider: "portone" }, // 서버에서 unpaid 세팅하도록 유도(참고용)
           customer: {
             name: formData.name,
             phone: formData.phone,
@@ -98,72 +100,64 @@ export default function CheckoutPage() {
             shippingFee,
             total: totalAmount,
           },
-          createdAt: serverTimestamp(),
-          updatedAt: serverTimestamp(),
+        }),
+      });
+
+      const data: CreateOrderResponse = await res.json();
+
+      if (!res.ok || !data.ok) {
+        throw new Error(
+          (data as any)?.error || "주문 생성 API 호출에 실패했습니다."
+        );
+      }
+
+      const { merchant_uid, amount } = data;
+
+      // 2) ✅ PortOne 결제창 호출 (키 없으니 구조만)
+      if (!document.getElementById("portone-iamport-sdk")) {
+        await new Promise<void>((resolve, reject) => {
+          const s = document.createElement("script");
+          s.id = "portone-iamport-sdk";
+          s.src = "https://cdn.iamport.kr/v1/iamport.js";
+          s.async = true;
+          s.onload = () => resolve();
+          s.onerror = () => reject(new Error("결제 모듈 스크립트 로드 실패"));
+          document.body.appendChild(s);
+        });
+      }
+
+      const { IMP } = window as any;
+      if (!IMP) throw new Error("결제 모듈을 불러올 수 없습니다.");
+
+      // TODO: 계약 후 실제 storeId로 교체
+      IMP.init("imp00000000"); // 🔥 테스트용 더미
+
+      IMP.request_pay(
+        {
+          pg: "html5_inicis",
+          pay_method: "card",
+          merchant_uid, // ✅ 서버가 만든 merchant_uid 사용 (중요)
+          name: "디저트 주문",
+          amount, // ✅ 서버가 확정한 금액 사용 (운영 관점에서 더 안전)
+          buyer_name: formData.name,
+          buyer_tel: formData.phone,
+          m_redirect_url: `${window.location.origin}/pay/portone/redirect`,
+        },
+        (rsp: any) => {
+          if (rsp?.success) {
+            setIsSubmitting(false);
+            router.push(
+              `/order/complete?imp_uid=${rsp.imp_uid}&merchant_uid=${rsp.merchant_uid}`
+            );
+            return;
+          }
+
+          // ❗️클라에서 Firestore 업데이트는 금지(비회원 write 차단)
+          // 운영형으로는 다음 단계에서 결제 실패/취소 기록용 서버 API를 붙이면 됨.
+          alert("결제가 취소되었거나 실패했습니다.");
+          setIsSubmitting(false);
         }
-      );      
-      const orderId: string = docRef.id;
-
-// ✅ (운영/추적용) 주문 생성 직후 orderId/payment.requestedAt 저장
-await updateDoc(doc(db, "orders", orderId), {
-  "payment.orderId": orderId,
-  "payment.requestedAt": serverTimestamp(),
-  updatedAt: serverTimestamp(),
-});
-
-// ✅ PortOne 결제창 호출 ...
-// ✅ PortOne 결제창 호출 (키 없으니 일단 구조만)
-if (!document.getElementById("portone-iamport-sdk")) {
-  await new Promise<void>((resolve, reject) => {
-    const s = document.createElement("script");
-    s.id = "portone-iamport-sdk";
-    s.src = "https://cdn.iamport.kr/v1/iamport.js";
-    s.async = true;
-    s.onload = () => resolve();
-    s.onerror = () => reject(new Error("결제 모듈 스크립트 로드 실패"));
-    document.body.appendChild(s);
-  });
-}
-
-const { IMP } = window as any;
-if (!IMP) throw new Error("결제 모듈을 불러올 수 없습니다.");
-
-// TODO: 계약 후 실제 storeId로 교체
-IMP.init("imp00000000"); // 🔥 테스트용 더미
-
-IMP.request_pay(
-  {
-    pg: "html5_inicis", // 포트원 내부 PG (나중에 네이버페이 채널로 변경)
-    pay_method: "card", // 테스트 단계
-    merchant_uid: orderNumber,
-    name: "디저트 주문",
-    amount: totalAmount,
-    buyer_name: formData.name,
-    buyer_tel: formData.phone,
-    m_redirect_url: `${window.location.origin}/pay/portone/redirect`,
-  },
-  (rsp: any) => {
-    if (rsp.success) {
-      setIsSubmitting(false);
-      router.push(
-        `/order/complete?imp_uid=${rsp.imp_uid}&merchant_uid=${rsp.merchant_uid}`
       );
-      return;
-    }
-    
-  
-    // ✅ 결제 실패/취소도 주문에 기록 (운영 필수)
-    updateDoc(doc(db, "orders", orderId), {
-      "payment.status": rsp.error_code ? "failed" : "cancelled",
-      "payment.failReason": rsp.error_msg || "user_cancelled",
-      updatedAt: serverTimestamp(),
-    }).catch(() => {});
-  
-    alert("결제가 취소되었거나 실패했습니다.");
-    setIsSubmitting(false);
-  }  
-);
-      
     } catch (error: any) {
       console.error(error);
       alert(error?.message || "주문 처리 중 오류가 발생했습니다. 다시 시도해주세요.");
@@ -377,8 +371,8 @@ IMP.request_pay(
                   </div>
 
                   <Button type="submit" fullWidth size="lg" disabled={isSubmitting}>
-                 {isSubmitting ? "결제창 여는 중..." : "주문하기"}
-                 </Button>
+                    {isSubmitting ? "결제창 여는 중..." : "주문하기"}
+                  </Button>
 
                   <p className="text-xs text-stone-500 text-center mt-4">
                     주문 내용을 확인하였으며, 결제에 동의합니다.

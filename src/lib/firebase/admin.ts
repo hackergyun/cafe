@@ -1,3 +1,4 @@
+// src/lib/firebase/admin.ts
 import "server-only";
 import admin from "firebase-admin";
 
@@ -19,14 +20,12 @@ function getServiceAccountFromEnv(): ServiceAccount {
   let parsed: any;
   try {
     parsed = JSON.parse(raw);
-  } catch (e) {
+  } catch {
     throw new Error(
       "FIREBASE_SERVICE_ACCOUNT_KEY is not valid JSON. Use a single-line JSON string."
     );
   }
 
-  // Vercel/env에 들어간 private_key는 보통 \n 포함 문자열 형태임.
-  // 혹시 실제 줄바꿈이 섞여 들어간 케이스도 대비해서 normalize.
   const privateKey =
     typeof parsed.private_key === "string"
       ? parsed.private_key.replace(/\\n/g, "\n")
@@ -59,3 +58,6 @@ export function getAdminDb() {
   const app = getAdminApp();
   return admin.firestore(app);
 }
+
+// ✅ 추가: 다른 파일에서 바로 쓰도록 export
+export const adminDb = getAdminDb();
