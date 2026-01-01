@@ -6,6 +6,7 @@ import Link from "next/link";
 import Button from "@/components/Button";
 import { useCart } from "@/context/CartContext";
 import { getProductById, getCategoryById } from "@/data/products";
+import Image from "next/image";
 
 export default function ProductPage() {
   const params = useParams();
@@ -79,16 +80,30 @@ export default function ProductPage() {
       <div className="max-w-7xl mx-auto px-6 lg:px-8 pb-24">
         <div className="grid lg:grid-cols-2 gap-12 lg:gap-20">
           {/* Image */}
-          <div className="aspect-square bg-gradient-to-br from-amber-100 via-orange-50 to-stone-200 flex items-center justify-center relative">
-            <span className="text-stone-400 text-lg font-light tracking-widest text-center px-8">
-              {product.name}
-            </span>
-            {product.isBest && (
-              <div className="absolute top-6 left-6 bg-amber-700 text-white text-sm px-4 py-2 tracking-wider">
-                BEST
-              </div>
-            )}
-          </div>
+          <div className="relative aspect-square overflow-hidden bg-stone-100">
+  {product.imageUrl ? (
+    <Image
+      src={product.imageUrl}
+      alt={product.name}
+      fill
+      sizes="(max-width: 1024px) 100vw, 50vw"
+      className="object-cover"
+      priority
+    />
+  ) : (
+    <div className="absolute inset-0 bg-gradient-to-br from-amber-100 via-orange-50 to-stone-200 flex items-center justify-center">
+      <span className="text-stone-400 text-lg font-light tracking-widest text-center px-8">
+        준비중
+      </span>
+    </div>
+  )}
+
+  {product.isBest && (
+    <div className="absolute top-6 left-6 bg-amber-700 text-white text-sm px-4 py-2 tracking-wider">
+      BEST
+    </div>
+  )}
+</div>
 
           {/* Info */}
           <div className="lg:py-8">

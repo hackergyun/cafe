@@ -21,34 +21,31 @@ export default function Home() {
 
         {/* Content */}
         <div className="relative z-10 max-w-4xl mx-auto px-6 text-center">
-          <p
-            className="text-amber-700 text-sm tracking-[0.3em] uppercase mb-6 animate-fade-in"
-            style={{ animationDelay: "0.2s" }}
-          >
-            Artisan Desserts
-          </p>
-          <h1
-            className="text-5xl md:text-7xl lg:text-8xl font-serif text-stone-900 leading-tight mb-8 animate-fade-in"
-            style={{ animationDelay: "0.4s" }}
-          >
-            달콤한 순간,
-            <br />
-            <span className="text-amber-700">특별한 하루</span>
-          </h1>
-          <p
-            className="text-stone-600 text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed animate-fade-in"
-            style={{ animationDelay: "0.6s" }}
-          >
-            매일 아침, 신선한 재료로 정성껏 만드는 수제 디저트.
-            <br />
-            당신의 특별한 순간을 더욱 달콤하게 만들어 드립니다.
-          </p>
+        <p className="text-amber-700 text-sm tracking-[0.3em] uppercase mb-6">
+  Financier Only
+</p>
+
+          <h1 className="text-4xl md:text-6xl lg:text-7xl font-serif text-stone-900 leading-tight mb-8 animate-fade-in">
+  베어 무는 순간 느껴지는
+  <br />
+  <span className="text-amber-700">
+    프리미엄 AOP 버터의 풍미
+  </span>
+</h1>
+
+<p className="text-stone-600 text-lg md:text-xl max-w-2xl mx-auto mb-12 leading-relaxed">
+  겉은 <span className="font-medium text-stone-800">바삭</span>하고,
+  속은 <span className="font-medium text-stone-800">쫀쫀</span>하게.
+  <br />
+  버터의 풍미가 진하게 살아있는 나리재 휘낭시에.
+</p>
+
           <div
             className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in"
             style={{ animationDelay: "0.8s" }}
           >
             <Link href="/shop/all">
-              <Button size="lg">전체 상품 보기</Button>
+            <Button size="lg">휘낭시에 보러가기</Button>
             </Link>
             <Link href="/brand">
               <Button variant="outline" size="lg">
@@ -75,62 +72,43 @@ export default function Home() {
           </svg>
         </div>
       </section>
+      {/* Landing Panels Section (from planning images) */}
+<section className="bg-white">
+  <div className="max-w-5xl mx-auto px-4 py-12">
+    {[
+      "/images/landing/01.jpg",
+      "/images/landing/02.jpg",
+      "/images/landing/03.jpg",
+      "/images/landing/04.jpg",
+      "/images/landing/05.jpg",
+    ].map((src, idx) => (
+      <div key={src} className="mb-10 last:mb-0">
+        <img
+          src={src}
+          alt={`Narijae Financier panel ${idx + 1}`}
+          className="w-full h-auto rounded-2xl shadow-sm border border-stone-200"
+          loading="lazy"
+        />
+      </div>
+    ))}
+  </div>
+</section>
 
-      {/* Category Section */}
-      <section className="py-24 bg-white">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <p className="text-amber-700 text-sm tracking-[0.2em] uppercase mb-4">
-              Categories
-            </p>
-            <h2 className="text-3xl md:text-4xl font-serif text-stone-900">
-              디저트 라인업
-            </h2>
-          </div>
 
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-6 lg:gap-8">
-            {categories.map((category, index) => (
-              <Link
-                key={category.id}
-                href={`/shop/${category.id}`}
-                className="group relative aspect-[3/4] overflow-hidden bg-stone-100"
-                style={{ animationDelay: `${index * 0.1}s` }}
-              >
-                {/* Placeholder Background */}
-                <div className="absolute inset-0 bg-gradient-to-br from-amber-100 via-orange-50 to-stone-200" />
-
-                {/* Overlay */}
-                <div className="absolute inset-0 bg-stone-900/20 group-hover:bg-stone-900/40 transition-all duration-500" />
-
-                {/* Content */}
-                <div className="absolute inset-0 flex flex-col items-center justify-center text-white p-6">
-                  <h3 className="text-2xl md:text-3xl font-serif mb-2 group-hover:scale-110 transition-transform duration-500">
-                    {category.name}
-                  </h3>
-                  <p className="text-sm text-white/80 text-center opacity-0 group-hover:opacity-100 transition-opacity duration-500">
-                    {category.description}
-                  </p>
-                </div>
-
-                {/* Border Effect */}
-                <div className="absolute inset-4 border border-white/30 group-hover:inset-6 transition-all duration-500" />
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+     
 
       {/* Best Products Section */}
       <section className="py-24 bg-stone-50">
         <div className="max-w-7xl mx-auto px-6 lg:px-8">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end mb-16">
             <div>
-              <p className="text-amber-700 text-sm tracking-[0.2em] uppercase mb-4">
-                Best Sellers
-              </p>
-              <h2 className="text-3xl md:text-4xl font-serif text-stone-900">
-                베스트 상품
-              </h2>
+            <h2 className="text-3xl md:text-4xl font-serif text-stone-900 mb-4">
+  Financier Lineup
+</h2>
+<p className="text-stone-600">
+나리재의 시그니처 휘낭시에를 매일 갓 구워 전해드립니다.
+</p>
+
             </div>
             <Link
               href="/shop/all"

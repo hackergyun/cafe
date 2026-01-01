@@ -36,8 +36,9 @@ export default async function ShopPage({ params }: ShopPageProps) {
             Shop
           </p>
           <h1 className="text-4xl md:text-5xl font-serif text-stone-900">
-            {isAll ? "전체 상품" : currentCategory?.name}
-          </h1>
+  휘낭시에
+</h1>
+
           {currentCategory && (
             <p className="text-stone-600 mt-4 max-w-xl">
               {currentCategory.description}
@@ -45,37 +46,7 @@ export default async function ShopPage({ params }: ShopPageProps) {
           )}
         </div>
       </section>
-
-      {/* Category Tabs */}
-      <section className="bg-white border-b border-stone-200 sticky top-20 z-40">
-        <div className="max-w-7xl mx-auto px-6 lg:px-8">
-          <div className="flex gap-8 overflow-x-auto py-4 scrollbar-hide">
-            <Link
-              href="/shop/all"
-              className={`whitespace-nowrap text-sm tracking-wider transition-colors ${
-                isAll
-                  ? "text-amber-700 font-medium"
-                  : "text-stone-500 hover:text-stone-900"
-              }`}
-            >
-              전체
-            </Link>
-            {categories.map((cat) => (
-              <Link
-                key={cat.id}
-                href={`/shop/${cat.id}`}
-                className={`whitespace-nowrap text-sm tracking-wider transition-colors ${
-                  cat.id === category
-                    ? "text-amber-700 font-medium"
-                    : "text-stone-500 hover:text-stone-900"
-                }`}
-              >
-                {cat.name}
-              </Link>
-            ))}
-          </div>
-        </div>
-      </section>
+      
 
       {/* Products Grid */}
       <section className="py-12">
