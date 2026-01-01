@@ -17,7 +17,7 @@ export default function BrandPage() {
             정성을 담아
           </h1>
           <p className="text-stone-300 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
-            2015년 작은 공방에서 시작된 Maison Dessert는
+            2015년 작은 공방에서 시작된 narijae financier는
             <br />
             최고의 재료와 장인 정신으로 디저트를 만들어갑니다.
           </p>
@@ -172,7 +172,7 @@ export default function BrandPage() {
                 year: "2015",
                 title: "작은 시작",
                 description:
-                  "서울 연남동 작은 공방에서 Maison Dessert가 시작되었습니다.",
+                  "서울 연남동 작은 공방에서 narijae financier가 시작되었습니다.",
               },
               {
                 year: "2017",

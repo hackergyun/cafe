@@ -9,7 +9,7 @@ export default function PoliciesPage() {
             이용약관 · 개인정보처리방침 · 배송/교환/환불 · 사업자 정보
           </h1>
           <p className="text-stone-500 mt-3 text-sm leading-relaxed">
-            본 페이지는 Maison Dessert(메종 디저트) 온라인 주문 서비스 운영을
+            본 페이지는 narijae financier(나리재 휘낭시에) 온라인 주문 서비스 운영을
             위한 기본 정책을 안내합니다. (MVP 단계 더미 내용 포함)
           </p>
 
@@ -53,7 +53,7 @@ export default function PoliciesPage() {
             <section>
               <h3 className="font-medium text-stone-900">제1조 (목적)</h3>
               <p className="mt-2">
-                본 약관은 Maison Dessert(이하 “회사”)가 제공하는 온라인 주문
+                본 약관은 narijae financier(이하 “회사”)가 제공하는 온라인 주문
                 서비스(이하 “서비스”) 이용과 관련하여 회사와 이용자의 권리·의무
                 및 책임사항을 규정함을 목적으로 합니다.
               </p>
@@ -250,7 +250,7 @@ export default function PoliciesPage() {
               <div>
                 <span className="text-stone-500">상호</span>
                 <div className="mt-1 font-medium text-stone-900">
-                  Maison Dessert
+                  narijae financier
                 </div>
               </div>
               <div>
@@ -278,7 +278,7 @@ export default function PoliciesPage() {
               </div>
               <div>
                 <span className="text-stone-500">이메일</span>
-                <div className="mt-1">hello@maisondessert.kr</div>
+                <div className="mt-1">hello@narijaefinancier.kr</div>
               </div>
               <div>
                 <span className="text-stone-500">운영시간</span>

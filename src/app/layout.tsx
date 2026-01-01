@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { Playfair_Display } from "next/font/google";
+import { Playfair_Display, Bodoni_Moda } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
@@ -10,9 +10,14 @@ const playfair = Playfair_Display({
   variable: "--font-serif",
   display: "swap",
 });
+const bodoni = Bodoni_Moda({
+  subsets: ["latin"],
+  variable: "--font-brand",
+  display: "swap",
+});
 
 export const metadata: Metadata = {
-  title: "Maison Dessert | 수제 디저트 전문점",
+  title: "narijae financier | 수제 디저트 전문점",
   description:
     "매일 아침, 신선한 재료로 정성껏 만드는 수제 디저트. 케이크, 마카롱, 쿠키, 타르트를 만나보세요.",
 };
@@ -23,7 +28,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="ko" className={playfair.variable}>
+    <html lang="ko" className={`${playfair.variable} ${bodoni.variable}`}>
       <body className="antialiased">
         <CartProvider>
           <Header />

@@ -15,11 +15,16 @@ export default function Header() {
         <div className="flex items-center justify-between h-20">
           {/* Logo */}
           <Link
-            href="/"
-            className="text-2xl font-serif tracking-wider text-stone-900 hover:text-amber-700 transition-colors"
-          >
-            MAISON DESSERT
-          </Link>
+  href="/"
+  aria-label="narijae financier"
+  className="transition-colors hover:opacity-90"
+>
+  <span className="block font-[var(--font-brand)] leading-[0.82] tracking-[-0.02em] text-[#EF9843]">
+    <span className="block text-[22px] md:text-[26px]">narijae</span>
+    <span className="block text-[22px] md:text-[26px]">financier</span>
+  </span>
+</Link>
+
 
           {/* Desktop Navigation */}
           <nav className="hidden md:flex items-center space-x-10">

@@ -7,9 +7,13 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-12">
           {/* Brand */}
           <div className="md:col-span-2">
-            <h2 className="text-2xl font-serif tracking-wider text-white mb-4">
-              MAISON DESSERT
-            </h2>
+          <h2 className="mb-4">
+  <span className="block font-[var(--font-brand)] leading-[0.82] tracking-[-0.02em] text-[#EF9843]">
+    <span className="block text-[26px]">narijae</span>
+    <span className="block text-[26px]">financier</span>
+  </span>
+</h2>
+
             <p className="text-stone-400 leading-relaxed max-w-md">
               매일 아침, 신선한 재료로 정성껏 만드는 수제 디저트.
               <br />
@@ -81,7 +85,7 @@ export default function Footer() {
         {/* Bottom */}
         <div className="border-t border-stone-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center gap-4">
           <p className="text-stone-500 text-sm">
-            © 2024 Maison Dessert. All rights reserved.
+          © 2024 narijae financier. All rights reserved.
           </p>
 
           {/* ✅ 정책 링크(하단 빠른 접근) - UI 톤 유지 */}
